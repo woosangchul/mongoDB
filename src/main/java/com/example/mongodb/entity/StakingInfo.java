@@ -16,12 +16,14 @@ public class StakingInfo {
     private String id;
 
     //stack or unstack
+    private String walletAddress;
+
     private String status;
 
     private String name;
 
     private String symbol;
 
-    private Timestamp timestamp;
+    private Long timestamp;
 
 }
