@@ -22,8 +22,8 @@ public class StakingInfo {
 
     private String name;
 
-    private String symbol;
-
     private Long timestamp;
+
+    private String tokenID;
 
 }
