@@ -1,3 +1,7 @@
+kaikas:
+  authKey:
+    KASKWIM459K2J82E1N7JY2HZ:cBr-HHL0S5AenhZqeendbpw4vbr3oEW2bBxMIJEr
+
 spring:
   data:
     mongodb:
