@@ -2,6 +2,7 @@ package com.example.mongodb;
 
 import com.example.mongodb.controller.dto.FTDto;
 import com.example.mongodb.controller.dto.NFTDto;
+import com.example.mongodb.controller.service.UserService;
 import com.example.mongodb.entity.StakingInfo;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -31,6 +32,8 @@ class MongoDbApplicationTests {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+    @Autowired
+    private UserService userService;
 
     @Test
     void insertMongoDB() {
@@ -105,7 +108,6 @@ class MongoDbApplicationTests {
 
 
 
-
                 for (int i = 0; i < array.size(); i++) {
                     if ( ((JSONObject)array.get(i)).get("to").equals("0x72e534e9f167dd72fec2d327f4b96fba2da79469")) {
                         walletAddress = ((JSONObject)array.get(i)).get("from").toString();
@@ -117,8 +119,6 @@ class MongoDbApplicationTests {
 
                     if (map1.containsKey(walletAddress.toString())) continue;
 
-                    System.out.print(i + 1);
-                    System.out.print(" ");
                      map1.put(walletAddress, StakingInfo.builder()
                                                         .walletAddress(walletAddress)
                                                         .status(status)
@@ -136,6 +136,7 @@ class MongoDbApplicationTests {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         for (Map.Entry<String,StakingInfo> entry: map1.entrySet()){
             mongoTemplate.insert(entry.getValue());
         }
@@ -201,35 +202,7 @@ class MongoDbApplicationTests {
                                     .symbol(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("symbol").toString()).build());
 
                     }
-
-
                 }
-
-                JSONObject obj = new JSONObject();
-                org.json.JSONArray arr = new org.json.JSONArray();
-                if (ftDTO.size() > 0){
-                    for (int i=0; i < ftDTO.size(); i++){
-                        JSONObject objTemp = new JSONObject();
-                        objTemp.put("address", walletAddress);
-                        objTemp.put(ftDTO.get(i).getSymbol(), ftDTO.get(i).getContractAddress());
-                        arr.put(objTemp);
-                    }
-                }
-
-                if (nftDTO.size() >0){
-                    for (int i=0; i < nftDTO.size(); i++){
-                        JSONObject objTemp = new JSONObject();
-                        objTemp.put("address", walletAddress);
-                        objTemp.put("nft_contract", nftDTO.get(i).getContractAddress());
-                        objTemp.put("nft_id", nftDTO.get(i).getTokenId());
-                        arr.put(objTemp);
-                    }
-                }
-                System.out.println(arr);
-
-
-
-
 
                 if (cursur.equals("")) {
                     break;
@@ -237,9 +210,42 @@ class MongoDbApplicationTests {
 
             }
 
+            JSONObject obj = new JSONObject();
+            org.json.JSONArray arr = new org.json.JSONArray();
+            if (ftDTO.size() > 0){
+                for (int i=0; i < ftDTO.size(); i++){
+                    JSONObject objTemp = new JSONObject();
+                    objTemp.put("address", walletAddress);
+                    objTemp.put(ftDTO.get(i).getSymbol(), ftDTO.get(i).getContractAddress());
+                    arr.put(objTemp);
+                }
+            }
+
+            if (nftDTO.size() >0){
+                for (int i=0; i < nftDTO.size(); i++){
+                    JSONObject objTemp = new JSONObject();
+                    objTemp.put("address", walletAddress);
+                    objTemp.put("nft_contract", nftDTO.get(i).getContractAddress());
+                    objTemp.put("nft_id", nftDTO.get(i).getTokenId());
+                    arr.put(objTemp);
+                }
+            }
+
+            System.out.println(arr);
+
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+    }
+
+    @Test
+    void test1(){
+
+        System.out.println(userService.getTokenOwnership());
+        System.out.println("");
+
 
     }
 
