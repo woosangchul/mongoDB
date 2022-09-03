@@ -1,5 +1,7 @@
 package com.example.mongodb;
 
+import com.example.mongodb.controller.dto.FTDto;
+import com.example.mongodb.controller.dto.NFTDto;
 import com.example.mongodb.entity.StakingInfo;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -149,14 +151,14 @@ class MongoDbApplicationTests {
         String userCredentials = "KASKWIM459K2J82E1N7JY2HZ:cBr-HHL0S5AenhZqeendbpw4vbr3oEW2bBxMIJEr";
         String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userCredentials.getBytes()));
 
-        String walletAddress = null;
-        String status = null;
+        String walletAddress = "0x8d5516d63213304647d2702f8027f0eef1a2480b";
         String cursur = "";
 
-        Map<String, StakingInfo> map1 = new HashMap<String, StakingInfo>();
+        ArrayList<FTDto> ftDTO = new ArrayList<>();
+        ArrayList<NFTDto> nftDTO = new ArrayList<>();
         try {
             while (true) {
-                String request_url = "https://th-api.klaytnapi.com/v2/account/0x72e534e9f167dd72fec2d327f4b96fba2da79469/token?size=1000";
+                String request_url = "https://th-api.klaytnapi.com/v2/account/"+walletAddress+ "/token?size=1000";
 
                 URL url = new URL(request_url + "&cursor=" + cursur);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -182,6 +184,51 @@ class MongoDbApplicationTests {
 
                 cursur = jsonObject.get("cursor").toString();
                 JSONArray array = (JSONArray) jsonObject.get("items");
+
+                for (int i=0; i < array.size(); i++){
+                    String kind = ((JSONObject)array.get(i)).get("kind").toString();
+
+                    if (kind.equals("nft")){
+                        nftDTO.add( NFTDto.builder()
+                                    .kind(kind)
+                                    .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
+                                    .tokenId(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("tokenId").toString()).build());
+
+                    }else if(kind.equals("ft")){
+                        ftDTO.add( FTDto.builder()
+                                    .kind(kind)
+                                    .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
+                                    .symbol(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("symbol").toString()).build());
+
+                    }
+
+
+                }
+
+                JSONObject obj = new JSONObject();
+                org.json.JSONArray arr = new org.json.JSONArray();
+                if (ftDTO.size() > 0){
+                    for (int i=0; i < ftDTO.size(); i++){
+                        JSONObject objTemp = new JSONObject();
+                        objTemp.put("address", walletAddress);
+                        objTemp.put(ftDTO.get(i).getSymbol(), ftDTO.get(i).getContractAddress());
+                        arr.put(objTemp);
+                    }
+                }
+
+                if (nftDTO.size() >0){
+                    for (int i=0; i < nftDTO.size(); i++){
+                        JSONObject objTemp = new JSONObject();
+                        objTemp.put("address", walletAddress);
+                        objTemp.put("nft_contract", nftDTO.get(i).getContractAddress());
+                        objTemp.put("nft_id", nftDTO.get(i).getTokenId());
+                        arr.put(objTemp);
+                    }
+                }
+                System.out.println(arr);
+
+
+
 
 
                 if (cursur.equals("")) {
