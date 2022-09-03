@@ -1,8 +1,10 @@
 package com.example.mongodb.controller.service;
 
 
-import com.example.mongodb.controller.dto.FTDto;
-import com.example.mongodb.controller.dto.NFTDto;
+
+import com.example.mongodb.controller.dto.FtDTO;
+import com.example.mongodb.controller.dto.NftDTO;
+import com.example.mongodb.controller.dto.ResultDTO;
 import com.example.mongodb.entity.StakingInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -36,8 +38,8 @@ public class UserServiceImpl implements UserService {
         String walletAddress = "0x8d5516d63213304647d2702f8027f0eef1a2480b";
         String cursur = "";
 
-        ArrayList<FTDto> ftDTO = new ArrayList<>();
-        ArrayList<NFTDto> nftDTO = new ArrayList<>();
+        org.json.JSONArray arr = new org.json.JSONArray();
+
         try {
             while (true) {
                 String request_url = "https://th-api.klaytnapi.com/v2/account/"+walletAddress+ "/token?size=1000";
@@ -67,24 +69,30 @@ public class UserServiceImpl implements UserService {
                 cursur = jsonObject.get("cursor").toString();
                 JSONArray array = (JSONArray) jsonObject.get("items");
 
+
+
                 for (int i=0; i < array.size(); i++){
                     String kind = ((JSONObject)array.get(i)).get("kind").toString();
 
+
                     if (kind.equals("nft")){
-                        nftDTO.add( NFTDto.builder()
-                                .kind(kind)
-                                .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
-                                .tokenId(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("tokenId").toString()).build());
+                        JSONObject objTemp = new JSONObject();
+                        objTemp.put("address", walletAddress);
+                        objTemp.put("nft_contract", ((JSONObject)array.get(i)).get("contractAddress").toString());
+                        objTemp.put("nft_id", ((JSONObject)((JSONObject)array.get(i)).get("extras")).get("tokenId").toString());
+                        arr.put(objTemp);
 
                     }else if(kind.equals("ft")){
-                        ftDTO.add( FTDto.builder()
-                                .kind(kind)
-                                .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
-                                .symbol(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("symbol").toString()).build());
+                        org.json.JSONObject objTemp = new org.json.JSONObject();
+                        objTemp.put("address", walletAddress);
+                        objTemp.put(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("symbol").toString(), ((JSONObject)array.get(i)).get("contractAddress").toString());
+                        arr.put(objTemp);
 
 
                     }
                 }
+
+
 
                 if (cursur.equals("")) {
                     break;
@@ -92,37 +100,12 @@ public class UserServiceImpl implements UserService {
 
             }
 
-            org.json.JSONObject obj = new org.json.JSONObject();
-            org.json.JSONArray arr = new org.json.JSONArray();
-            if (ftDTO.size() > 0){
-                for (int i=0; i < ftDTO.size(); i++){
-                    org.json.JSONObject objTemp = new org.json.JSONObject();
-                    objTemp.put("address", walletAddress);
-                    objTemp.put(ftDTO.get(i).getSymbol(), ftDTO.get(i).getContractAddress());
-                    arr.put(objTemp);
-                }
-            }
-
-            if (nftDTO.size() >0){
-                for (int i=0; i < nftDTO.size(); i++){
-                    JSONObject objTemp = new JSONObject();
-                    objTemp.put("address", walletAddress);
-                    objTemp.put("nft_contract", nftDTO.get(i).getContractAddress());
-                    objTemp.put("nft_id", nftDTO.get(i).getTokenId());
-                    arr.put(objTemp);
-                }
-            }
-
-            System.out.println(arr);
-            return arr;
-
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-
-        return null;
+        return arr;
 
 
     }

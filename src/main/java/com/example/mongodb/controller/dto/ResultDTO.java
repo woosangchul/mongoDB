@@ -1,13 +1,16 @@
 package com.example.mongodb.controller.dto;
 
-import lombok.Builder;
+
+
+import lombok.AllArgsConstructor;
+
 import lombok.Data;
 
+
+@AllArgsConstructor
 @Data
-@Builder
-public class FTDto {
+public class ResultDTO {
+    private String address;
     private String kind;
     private String contractAddress;
-    private String symbol;
-
 }
