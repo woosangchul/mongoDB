@@ -1,9 +1,6 @@
-package com.example.mongodb.controller.dto;
+package com.example.mongodb.dto;
 
 import lombok.Builder;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-
 
 
 public class NftDTO extends ResultDTO{

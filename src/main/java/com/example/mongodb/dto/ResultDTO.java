@@ -1,4 +1,4 @@
-package com.example.mongodb.controller.dto;
+package com.example.mongodb.dto;
 
 
 

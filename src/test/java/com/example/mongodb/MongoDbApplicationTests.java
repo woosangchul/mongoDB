@@ -1,31 +1,30 @@
 package com.example.mongodb;
 
-import com.example.mongodb.controller.dto.FTDto;
-import com.example.mongodb.controller.dto.NFTDto;
+
+import com.example.mongodb.dto.TokenDTO;
 import com.example.mongodb.controller.service.UserService;
 import com.example.mongodb.entity.StakingInfo;
+import com.example.mongodb.entity.TimeStamp;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.json.JsonbTester;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
-
-import javax.xml.bind.DatatypeConverter;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
+
+import static org.springframework.data.mongodb.core.query.Criteria.where;
+import static org.springframework.data.mongodb.core.query.Query.query;
 
 @SpringBootTest
 class MongoDbApplicationTests {
@@ -47,11 +46,12 @@ class MongoDbApplicationTests {
 
         mongoTemplate.insert(userInfo);
 
+
     }
 
     @Test
     void getMongoDB() {
-        Query query = new Query(Criteria.where("walletAddress").is("Harry"));
+        Query query = new Query(where("walletAddress").is("Harry"));
         Update update = new Update().set("status", "update");
 
         StakingInfo oldValue = mongoTemplate.update(StakingInfo.class)
@@ -59,11 +59,32 @@ class MongoDbApplicationTests {
                 .apply(update)
                 .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
                 .findAndModifyValue(); // return's old person object
+    }
+
+    @Test
+    void getMongoDB1() {
+        String walletAddress = "0x8D5516d63213304647D2702f8027f0eEF1a2480b";
+        //Query query = new Query(Criteria.where("walletAddress").is(walletAddress.toLowerCase()));
+        //Update update = new Update().set("status", "update");
+
+        /*
+        StakingInfo oldValue = mongoTemplate.update(StakingInfo.class)
+                .matching(query)
+                .apply(update)
+                .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
+                .findAndModifyValue(); // return's old person object
+
+
+         */
+        StakingInfo oldValue = mongoTemplate.findOne(query(where("walletAddress").is(walletAddress.toLowerCase())), StakingInfo.class);
+        System.out.println(oldValue.toString());
+
+
 
     }
 
     @Test
-    void getStackingList() {
+    void initialMongoDB() {
 
         JSONObject jsonObject = null;
         ArrayList<StakingInfo> arrayList = new ArrayList<>();
@@ -74,12 +95,11 @@ class MongoDbApplicationTests {
         String walletAddress = null;
         String status = null;
         String cursur = "";
-
+        TimeStamp newTimestamp = null;
         Map<String, StakingInfo> map1 = new HashMap<String, StakingInfo>();
         try {
             while (true) {
                 String request_url = "https://th-api.klaytnapi.com/v2/transfer/account/0x72e534e9f167dd72fec2d327f4b96fba2da79469?kind=nft&size=1000";
-
 
                 URL url = new URL(request_url + "&cursor=" + cursur);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -106,7 +126,9 @@ class MongoDbApplicationTests {
                 cursur = jsonObject.get("cursor").toString();
                 JSONArray array = (JSONArray) jsonObject.get("items");
 
-
+                newTimestamp = TimeStamp.builder()
+                        .status("updated")
+                        .timestamp((Long) ((JSONObject)((JSONObject)array.get(0)).get("transaction")).get("timestamp")).build();
 
                 for (int i = 0; i < array.size(); i++) {
                     if ( ((JSONObject)array.get(i)).get("to").equals("0x72e534e9f167dd72fec2d327f4b96fba2da79469")) {
@@ -141,25 +163,56 @@ class MongoDbApplicationTests {
             mongoTemplate.insert(entry.getValue());
         }
 
+        assert newTimestamp != null;
+        mongoTemplate.insert(newTimestamp);
+
+
+    }
+
+
+    @Test
+    void getTokenPrice(){
+
+        Map<String, TokenDTO> map1 =  userService.getTokenPrice();
+
+        System.out.println(map1);
 
     }
 
     @Test
     void getTokenInfo(){
+        String walletAddress = "0x8D5516d63213304647D2702f8027f0eEF1a2480b";
+
+        userService.getTokenOwnershipWithWalletAddress(walletAddress);
+
+    }
+
+    @Test
+    void insertStamp(){
+        mongoTemplate.insert(TimeStamp.builder()
+                    .status("updated")
+                    .timestamp(1662130510L).build());
+
+    }
+
+    @Test
+    void batchTest(){
         JSONObject jsonObject = null;
         ArrayList<StakingInfo> arrayList = new ArrayList<>();
+        Long newTimeStamp = null;
+        TimeStamp prevStamp = mongoTemplate.findOne(query(where("status").is("updated")), TimeStamp.class);
 
         String userCredentials = "KASKWIM459K2J82E1N7JY2HZ:cBr-HHL0S5AenhZqeendbpw4vbr3oEW2bBxMIJEr";
         String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userCredentials.getBytes()));
 
-        String walletAddress = "0x8d5516d63213304647d2702f8027f0eef1a2480b";
+        String walletAddress = null;
+        String status = null;
         String cursur = "";
 
-        ArrayList<FTDto> ftDTO = new ArrayList<>();
-        ArrayList<NFTDto> nftDTO = new ArrayList<>();
+        Map<String, StakingInfo> map1 = new HashMap<String, StakingInfo>();
         try {
             while (true) {
-                String request_url = "https://th-api.klaytnapi.com/v2/account/"+walletAddress+ "/token?size=1000";
+                String request_url = "https://th-api.klaytnapi.com/v2/transfer/account/0x72e534e9f167dd72fec2d327f4b96fba2da79469?kind=nft&size=1000";
 
                 URL url = new URL(request_url + "&cursor=" + cursur);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -185,24 +238,37 @@ class MongoDbApplicationTests {
 
                 cursur = jsonObject.get("cursor").toString();
                 JSONArray array = (JSONArray) jsonObject.get("items");
+                Long prevTimeStamp = prevStamp.getTimestamp();
+                if ( newTimeStamp == null) newTimeStamp = (Long)((JSONObject)((JSONObject)array.get(0)).get("transaction")).get("timestamp");
 
-                for (int i=0; i < array.size(); i++){
-                    String kind = ((JSONObject)array.get(i)).get("kind").toString();
+                for (int i = 0; i < array.size(); i++) {
+                    Long nowTimeStamp = (Long)((JSONObject)((JSONObject)array.get(i)).get("transaction")).get("timestamp");
 
-                    if (kind.equals("nft")){
-                        nftDTO.add( NFTDto.builder()
-                                    .kind(kind)
-                                    .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
-                                    .tokenId(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("tokenId").toString()).build());
-
-                    }else if(kind.equals("ft")){
-                        ftDTO.add( FTDto.builder()
-                                    .kind(kind)
-                                    .contractAddress(((JSONObject)array.get(i)).get("contractAddress").toString())
-                                    .symbol(((JSONObject)((JSONObject)array.get(i)).get("extras")).get("symbol").toString()).build());
-
+                    if (prevTimeStamp >= nowTimeStamp) {
+                        cursur = "";
+                        break;
                     }
+
+                    if ( ((JSONObject)array.get(i)).get("to").equals("0x72e534e9f167dd72fec2d327f4b96fba2da79469")) {
+                        walletAddress = ((JSONObject)array.get(i)).get("from").toString();
+                        status = "stake";
+                    } else {
+                        walletAddress = ((JSONObject)array.get(i)).get("to").toString();
+                        status = "unStake";
+                    }
+
+                    if (map1.containsKey(walletAddress.toString())) continue;
+
+
+                    map1.put(walletAddress, StakingInfo.builder()
+                            .walletAddress(walletAddress)
+                            .status(status)
+                            .name(((JSONObject)((JSONObject)array.get(i)).get("contract")).get("name").toString())
+                            .tokenID(((JSONObject)array.get(i)).get("tokenId").toString())
+                            .timestamp((Long) ((JSONObject)((JSONObject)array.get(i)).get("transaction")).get("timestamp")).build());
+
                 }
+
 
                 if (cursur.equals("")) {
                     break;
@@ -210,41 +276,35 @@ class MongoDbApplicationTests {
 
             }
 
-            JSONObject obj = new JSONObject();
-            org.json.JSONArray arr = new org.json.JSONArray();
-            if (ftDTO.size() > 0){
-                for (int i=0; i < ftDTO.size(); i++){
-                    JSONObject objTemp = new JSONObject();
-                    objTemp.put("address", walletAddress);
-                    objTemp.put(ftDTO.get(i).getSymbol(), ftDTO.get(i).getContractAddress());
-                    arr.put(objTemp);
-                }
+
+            for (Map.Entry<String,StakingInfo> entry: map1.entrySet()){
+                Query query = new Query(where("walletAddress").is(entry.getValue().getWalletAddress()));
+                Update update = new Update().set("status", entry.getValue().getStatus())
+                                            .set("timestamp", entry.getValue().getTimestamp());
+
+                StakingInfo oldValue = mongoTemplate.update(StakingInfo.class)
+                        .matching(query)
+                        .apply(update)
+                        .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
+                        .findAndModifyValue(); // return's old person object
+
             }
 
-            if (nftDTO.size() >0){
-                for (int i=0; i < nftDTO.size(); i++){
-                    JSONObject objTemp = new JSONObject();
-                    objTemp.put("address", walletAddress);
-                    objTemp.put("nft_contract", nftDTO.get(i).getContractAddress());
-                    objTemp.put("nft_id", nftDTO.get(i).getTokenId());
-                    arr.put(objTemp);
-                }
-            }
+            Query query = new Query(where("status").is("updated"));
+            Update update = new Update().set("timestamp", newTimeStamp);
+            TimeStamp oldValue = mongoTemplate.update(TimeStamp.class)
+                    .matching(query)
+                    .apply(update)
+                    .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
+                    .findAndModifyValue(); // return's old person object
 
-            System.out.println(arr);
+
 
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-    }
-
-    @Test
-    void test1(){
-
-        System.out.println(userService.getTokenOwnership());
-        System.out.println("");
 
 
     }
