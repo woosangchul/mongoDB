@@ -1,14 +1,17 @@
 package com.example.mongodb;
 
 
+import com.example.mongodb.connection.CreateConnection;
+import com.example.mongodb.connection.KlaytonServerConnection;
 import com.example.mongodb.dto.TokenDTO;
-import com.example.mongodb.controller.service.UserService;
+import com.example.mongodb.service.UserService;
 import com.example.mongodb.entity.StakingInfo;
 import com.example.mongodb.entity.TimeStamp;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +21,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -169,6 +173,71 @@ class MongoDbApplicationTests {
 
     }
 
+    @Test
+    void initialMongoDBWithKlaytonServerConnection() throws IOException, ParseException {
+
+        
+        ArrayList<StakingInfo> arrayList = new ArrayList<>();
+
+        String walletAddress = null;
+        String status = null;
+
+        TimeStamp newTimestamp = null;
+        Map<String, StakingInfo> map1 = new HashMap<String, StakingInfo>();
+
+        String cursur = "";
+        String request_url = "https://th-api.klaytnapi.com/v2/transfer/account/0x72e534e9f167dd72fec2d327f4b96fba2da79469?kind=nft&size=1000"+"&cursur="+cursur.toString();
+        JSONObject jsonObject = CreateConnection.open(request_url)
+                                                    .method("GET")
+                                                    .requestProperty("Content-Type", "application/json")
+                                                    .requestProperty("Accept", "application/json")
+                                                    .requestProperty("Accept", "application/json")
+                                                    .requestProperty("x-chain-id", "8217")
+                                                    .output()
+                                                    .getJson();
+
+        cursur = jsonObject.get("cursor").toString();
+        JSONArray array = (JSONArray) jsonObject.get("items");
+
+        newTimestamp = TimeStamp.builder()
+                .status("updated")
+                .timestamp((Long) ((JSONObject)((JSONObject)array.get(0)).get("transaction")).get("timestamp")).build();
+
+        for (int i = 0; i < array.size(); i++) {
+            if ( ((JSONObject)array.get(i)).get("to").equals("0x72e534e9f167dd72fec2d327f4b96fba2da79469")) {
+                walletAddress = ((JSONObject)array.get(i)).get("from").toString();
+                status = "stake";
+            } else {
+                walletAddress = ((JSONObject)array.get(i)).get("to").toString();
+                status = "unStake";
+            }
+
+            if (map1.containsKey(walletAddress.toString())) continue;
+
+            map1.put(walletAddress, StakingInfo.builder()
+                    .walletAddress(walletAddress)
+                    .status(status)
+                    .name(((JSONObject)((JSONObject)array.get(i)).get("contract")).get("name").toString())
+                    .tokenID(((JSONObject)array.get(i)).get("tokenId").toString())
+                    .timestamp((Long) ((JSONObject)((JSONObject)array.get(i)).get("transaction")).get("timestamp")).build());
+        }
+
+        if (cursur.equals("")) {
+            break;
+        }
+
+
+
+
+        for (Map.Entry<String,StakingInfo> entry: map1.entrySet()){
+            mongoTemplate.insert(entry.getValue());
+        }
+
+        assert newTimestamp != null;
+        mongoTemplate.insert(newTimestamp);
+
+
+    }
 
     @Test
     void getTokenPrice(){

@@ -1,22 +1,27 @@
-package com.example.mongodb.controller.service;
+package com.example.mongodb.service;
 
 
 
 import com.example.mongodb.dto.TokenDTO;
 import com.example.mongodb.entity.StakingInfo;
+import com.example.mongodb.entity.TimeStamp;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -251,11 +256,6 @@ public class UserServiceImpl implements UserService {
 
                 }
 
-
-
-
-
-
                 if (cursur.equals("")) {
                     break;
                 }
@@ -314,5 +314,120 @@ public class UserServiceImpl implements UserService {
         }
 
         return map1;
+    }
+
+    @Override
+    public void updateStackingStatus() {
+        log.info("update StackingStatus..."+ LocalDateTime.now());
+
+        JSONObject jsonObject = null;
+        ArrayList<StakingInfo> arrayList = new ArrayList<>();
+        Long newTimeStamp = null;
+        TimeStamp prevStamp = mongoTemplate.findOne(query(where("status").is("updated")), TimeStamp.class);
+
+        String userCredentials = "KASKWIM459K2J82E1N7JY2HZ:cBr-HHL0S5AenhZqeendbpw4vbr3oEW2bBxMIJEr";
+        String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userCredentials.getBytes()));
+
+        String walletAddress = null;
+        String status = null;
+        String cursur = "";
+
+        Map<String, StakingInfo> map1 = new HashMap<String, StakingInfo>();
+        try {
+            while (true) {
+                String request_url = "https://th-api.klaytnapi.com/v2/transfer/account/0x72e534e9f167dd72fec2d327f4b96fba2da79469?kind=nft&size=1000";
+
+                URL url = new URL(request_url + "&cursor=" + cursur);
+                HttpURLConnection con = (HttpURLConnection) url.openConnection();
+
+                con.setDoOutput(true);
+                con.setRequestProperty("Content-Type", "application/json");
+                con.setRequestProperty("Accept", "application/json");
+                con.setRequestProperty("Authorization", basicAuth);
+                con.setRequestMethod("GET");
+                con.setRequestProperty("x-chain-id", "8217");
+
+                // 서버로부터 데이터 읽어오기
+                BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line = null;
+
+                while ((line = br.readLine()) != null) { // 읽을 수 있을 때 까지 반복
+                    sb.append(line);
+                }
+
+                JSONParser parser = new JSONParser();
+                jsonObject = (JSONObject) parser.parse(sb.toString());
+
+                cursur = jsonObject.get("cursor").toString();
+                JSONArray array = (JSONArray) jsonObject.get("items");
+                Long prevTimeStamp = prevStamp.getTimestamp();
+                if ( newTimeStamp == null) newTimeStamp = (Long)((JSONObject)((JSONObject)array.get(0)).get("transaction")).get("timestamp");
+
+                for (int i = 0; i < array.size(); i++) {
+                    Long nowTimeStamp = (Long)((JSONObject)((JSONObject)array.get(i)).get("transaction")).get("timestamp");
+
+                    if (prevTimeStamp >= nowTimeStamp) {
+                        cursur = "";
+                        break;
+                    }
+
+                    if ( ((JSONObject)array.get(i)).get("to").equals("0x72e534e9f167dd72fec2d327f4b96fba2da79469")) {
+                        walletAddress = ((JSONObject)array.get(i)).get("from").toString();
+                        status = "stake";
+                    } else {
+                        walletAddress = ((JSONObject)array.get(i)).get("to").toString();
+                        status = "unStake";
+                    }
+
+                    if (map1.containsKey(walletAddress.toString())) continue;
+
+
+                    map1.put(walletAddress, StakingInfo.builder()
+                            .walletAddress(walletAddress)
+                            .status(status)
+                            .name(((JSONObject)((JSONObject)array.get(i)).get("contract")).get("name").toString())
+                            .tokenID(((JSONObject)array.get(i)).get("tokenId").toString())
+                            .timestamp((Long) ((JSONObject)((JSONObject)array.get(i)).get("transaction")).get("timestamp")).build());
+
+                }
+
+
+                if (cursur.equals("")) {
+                    break;
+                }
+
+            }
+
+
+            for (Map.Entry<String,StakingInfo> entry: map1.entrySet()){
+                Query query = new Query(where("walletAddress").is(entry.getValue().getWalletAddress()));
+                Update update = new Update().set("status", entry.getValue().getStatus())
+                        .set("timestamp", entry.getValue().getTimestamp());
+
+                StakingInfo oldValue = mongoTemplate.update(StakingInfo.class)
+                        .matching(query)
+                        .apply(update)
+                        .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
+                        .findAndModifyValue(); // return's old person object
+
+            }
+
+            Query query = new Query(where("status").is("updated"));
+            Update update = new Update().set("timestamp", newTimeStamp);
+            TimeStamp oldValue = mongoTemplate.update(TimeStamp.class)
+                    .matching(query)
+                    .apply(update)
+                    .withOptions(FindAndModifyOptions.options().upsert(true).returnNew(true))
+                    .findAndModifyValue(); // return's old person object
+
+
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

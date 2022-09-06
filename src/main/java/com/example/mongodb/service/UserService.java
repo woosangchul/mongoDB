@@ -1,4 +1,4 @@
-package com.example.mongodb.controller.service;
+package com.example.mongodb.service;
 
 
 import com.example.mongodb.dto.TokenDTO;
@@ -14,6 +14,8 @@ public interface UserService {
     org.json.JSONArray getNFTTokenOwnershipWithWalletAddress(String walletAddress);
 
     Map<String, TokenDTO> getTokenPrice();
+
+    void updateStackingStatus();
 
 
 

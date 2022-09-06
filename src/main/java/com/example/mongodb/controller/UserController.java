@@ -1,7 +1,7 @@
 package com.example.mongodb.controller;
 
 
-import com.example.mongodb.controller.service.UserService;
+import com.example.mongodb.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 ;
